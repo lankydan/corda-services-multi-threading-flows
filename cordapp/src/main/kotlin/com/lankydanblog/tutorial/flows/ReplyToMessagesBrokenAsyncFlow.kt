@@ -11,15 +11,31 @@ import net.corda.core.node.services.Vault
 import net.corda.core.node.services.vault.PageSpecification
 import net.corda.core.transactions.SignedTransaction
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 @InitiatingFlow
 @StartableByRPC
 class ReplyToMessagesBrokenAsyncFlow : FlowLogic<List<SignedTransaction>>() {
 
+    private companion object {
+        private val executor: Executor = Executors.newFixedThreadPool(8)!!
+    }
+
     @Suspendable
     override fun call(): List<SignedTransaction> {
-        return messages().map { CompletableFuture.supplyAsync { reply(it) } }.map { it.join() }
+        messages().map {
+            executor.execute {
+                reply(it)
+            }
+        }
+        return emptyList()
     }
+
+//    @Suspendable
+//    override fun call(): List<SignedTransaction> {
+//        return messages().map { CompletableFuture.supplyAsync { reply(it) }.join() }
+//    }
 
     private fun messages() =
         repository().findAll(PageSpecification(1, 100))
