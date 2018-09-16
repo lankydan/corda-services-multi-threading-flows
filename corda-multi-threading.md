@@ -165,10 +165,6 @@ class MessageService(private val serviceHub: AppServiceHub) : SingletonSerialize
                 sender = state.recipient
         )
     }
-
-    fun sleep() {
-        Thread.sleep(10000)
-    }
 }
 ```
 As you can see most of the code is the same as it was in the `ReplyToMessagesFlow`.
@@ -196,26 +192,45 @@ In the next section I will discuss using `CompletableFuture`s.
 For one simple reason. Deadlock. I recommend keeping clear of this solution, unless your node has access to enough threads to decrease the chance of filling the queue with threads that can't finish. On the other hand, it is a much more ideal solution since you can await the results of the started Flows and do something with them. This makes for a much more useful solution.
 
 Below is what the `MessageService` would look like with `CompletableFuture`s:
+```kotlin
+@CordaService
+class MessageService(private val serviceHub: AppServiceHub) : SingletonSerializeAsToken() {
+
+    fun replyAll(): List<SignedTransaction> =
+        messages().map { reply(it).returnValue.toCompletableFuture().join() }
+
+    private fun messages() =
+            repository().findAll(PageSpecification(1, 100))
+                    .states
+                    .filter { it.state.data.recipient == serviceHub.myInfo.legalIdentities.first() }
+
+    private fun repository() = serviceHub.cordaService(MessageRepository::class.java)
+
+    private fun reply(message: StateAndRef<MessageState>) =
+            serviceHub.startFlow(SendMessageFlow(response(message), message))
+
+    private fun response(message: StateAndRef<MessageState>): MessageState {
+        val state = message.state.data
+        return state.copy(
+                contents = "Thanks for your message: ${state.contents}",
+                recipient = state.sender,
+                sender = state.recipient
+        )
+    }
+}
 ```
+The code is completely the same except for the `replyAll` function. The `toCompletableFuture` function that the returned `CordaFuture` provides. `join` waits for the result of all futures and returns the overall result.
 
-<!-- ### Solutions
+As I mentioned before, this solution could lead to deadlock. But, for your scenario, maybe it doesn't. It is up to you to determine how likely it is to happen. If the odds are against you, it's probably best to walk away. Either choosing to stick with a synchronous or an asynchronous solution similar to what I detailed in the previous section.
 
-In my opinion, there are two solutions here. I will go through both of them in this post.
-- Start multiple Flows from the RPC level.
-- Start a single Flow that triggers subsequent Flows.
+### Do I really need to do this?
 
-As you will see throughout this post, the first option of starting from the RPC level comes with the least problems. The main downside of doing it here, in my opinion, is that your application code that lives outside of the Corda node now contains logic that should be inside the node. This decreases reusability, unless you are already being smart with how you structure your code. Maybe this won't be a problem for you, but maybe it will...
+For now, yes, I believe you do.
 
-Furthermore, using RPC might not even be possible from the point you want to trigger the asynchronous starting of Flows. These are all areas that need to be considered.
+Moving forward, I doubt that you will need to rely on the solution I proposed in this post. 
 
-The benefit of a single Flow that triggers this actually the solution to the problem I proposed with RPC. The code now lives inside a CorDapp and therefore a node. Anyone that has this CorDapp can now execute this Flow and doesn't need to worry about writing their own application code to cater for the scenario.
+I believe that Corda is working towards removing the need to implement thinking about threading when starting Flows from within Flows. Instead, allowing you to simply call `subFlow` with an option to run it asynchronously. This would have allowed the original "broken" solution I showed earlier to work.
 
-### RPC version
+### Joining the sections together
 
-Have I ran into the queue issue? Am I not starting my flows correctly?
-- Yes it is the queue issue
-- I need to start in a new thread (e.g. executor service)
-- Futures still hold the flow worker since join was being used
-- Futures are not safe, they do work in enterprise, but leads to the possibility of flow worker deadlock
-- Only fully correct solution is to start on new threads and not depend on the result of the thread (i.e. dont use futures)
-- This limits the functionality quite heavily -->
+In conclusion, in Corda Enterprise 3, it is possible to initiate new Flows asynchronously within an executing Flow. This can provide good performance benefits depending on your use-case. There are downsides though. You cannot await the results of the asynchronous Flows without endangering your node with threat of deadlock. The node's underlying queue cannot deal with the situation it is being put in. Therefore, you need to be careful about how you go about introducing threads to your Flow invocations. Thankfully, as Corda progresses, you probably don't even need to worry about doing this yourself and it might be as simple as a boolean function argument. That is the dream!
