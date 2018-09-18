@@ -1,6 +1,8 @@
 How can I make my Flows faster? There's a good chance you have thought about this before if you have been working with Corda for a while. You can make reasonable tweaks to eke out performance improvements by changing a few things: transaction size, optimising queries and reducing the number of network hops required throughout the Flow's execution. There is one other possibility that probably also crossed your mind at some point. Multi-threading. 
 
-If you tried this you have probably faced a similar exception to the one I got. Furthermore, as of now, Corda does not support threading within Flows. But, it can still be done. We just need to be clever about it. That's where multi-threading within Corda Services comes in. They can be called within Flows but are not prisoners to the strict rules that Flows put on them, since an executing Flow will not suspend or checkpoint from within a service.
+More specifically, asynchronously starting Flows/Sub Flows from an already executing Flow. Doing so has the potential to greatly improve your CorDapps performance.
+
+If you tried this, you probably faced a similar exception to the one I got. Furthermore, as of now, Corda does not support threading of Sub Flows. But, it can still be done. We just need to be clever about it. That's where multi-threading within Corda Services comes in. They can be called within Flows but are not prisoners to the strict rules that Flows put on them since an executing Flow will not suspend or checkpoint from within a service.
 
 In this post, I will focus on multi-threading the starting of Flows from within a Service. There are other area's that threading can be used within Corda, but this is an interesting area to that I want to look into deeper. On the other hand, starting Flows from a Service is also filled with a few gotchas. These need to be accounted for and traversed around. Otherwise, you are going to wake up one day and wonder why everything has stopped for no apparent reason. 
 
@@ -25,7 +27,7 @@ Although this scenario is a poor case for needing performance, it is a simple on
 
 ### The slow synchronous solution
 
-Before we look at the asynchronous solution, it will be beneficial to have a quick look at the code we will be moving from. Below is the code from `ReplyToMessagesFlow`, I don't want to go through all of the underlying code and instead only want to focus on the code relevant to this post:
+Before we look at the asynchronous solution, it will be beneficial to have a quick look at the code we will be moving from. Below is the code from `ReplyToMessagesFlow`. I don't want to go through all of the underlying code and instead only want to focus on the code relevant to this post:
 ```kotlin
 @InitiatingFlow
 @StartableByRPC
@@ -237,8 +239,8 @@ For now, yes, I believe you do.
 
 Moving forward, I doubt that you will need to rely on the solution I proposed in this post. 
 
-I believe that Corda is working towards removing the need to even think about threading when starting Flows from within Flows. Instead, allowing you to simply call `subFlow` with an option to run it asynchronously. This would have allowed the original "broken" solution I showed earlier to work.
+I believe that Corda is working towards removing the need to even think about threading when starting Flows from within Flows. Instead, allowing you to simply call `subFlow` with an option to run it asynchronously. This would have allowed us to keep the original synchronous solution but with an option to make each `subFlow` run on a separate thread.
 
 ### Joining the sections together
 
-In conclusion, in Corda Enterprise 3, it is possible to initiate new Flows asynchronously within an executing Flow. This can provide good performance benefits depending on your use-case. There are downsides though. You cannot await the results of the asynchronous Flows without endangering your node with the threat of deadlock. The node's underlying queue cannot deal with the situation it is being put in. Therefore, you need to be careful about how you go about introducing threads to your Flow invocations. Thankfully, as Corda progresses, you probably don't even need to worry about doing this yourself and it might be as simple as a boolean function argument. That is the dream!
+In conclusion, in Corda Enterprise 3, it is possible to initiate new Flows asynchronously within an executing Flow. This can provide good performance benefits depending on your use-case. There are downsides though. You cannot await the results of the asynchronous Flows without endangering your node with the threat of deadlock. The node's underlying queue cannot deal with the situation it is being put in. Therefore, you need to be careful about how you go about introducing threads to your Flow invocations. Thankfully, as Corda progresses, it's likely you won't even need to worry about doing this yourself. It might even be as simple as adding a boolean function argument. That is the dream!
