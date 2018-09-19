@@ -51,21 +51,7 @@ class MessageController(rpc: NodeRPCConnection) {
 
     @PostMapping("/replyAll")
     fun replyAll(): ResponseEntity<List<MessageState>> {
-        val result = proxy.startFlow(::ReplyToMessagesAsyncFlow).returnValue.get()
-        return ResponseEntity.ok(
-            result
-                .map(SignedTransaction::coreTransaction)
-                .flatMap(CoreTransaction::outputStates) as List<MessageState>
-        )
+        proxy.startFlow(::ReplyToMessagesAsyncFlow).returnValue.get()
+        return ResponseEntity.ok().build()
     }
-
-//    @PostMapping("/replyAll")
-//    fun replyAll(): ResponseEntity<List<MessageState>> {
-//        val result = proxy.startFlow(::ReplyToMessagesAsyncFlow).returnValue.get()
-//        return ResponseEntity.ok(
-//                result.map { it.join() }
-//                        .map(SignedTransaction::coreTransaction)
-//                        .flatMap(CoreTransaction::outputStates) as List<MessageState>
-//        )
-//    }
 }

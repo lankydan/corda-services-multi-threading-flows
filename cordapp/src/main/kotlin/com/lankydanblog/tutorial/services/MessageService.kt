@@ -18,56 +18,21 @@ import java.util.concurrent.Executors
 class MessageService(private val serviceHub: AppServiceHub) : SingletonSerializeAsToken() {
 
     private companion object {
-        val logger = loggerFor<MessageService>()
         val executor: Executor = Executors.newFixedThreadPool(8)!!
     }
 
-    fun replyInNewFlow(message: StateAndRef<MessageState>) = serviceHub.startFlow(SendMessageFlow(response(message), message))
-
-//    fun replyAll() {
-//        messages().map {
-//            executor.execute {
-//                reply(it)
-//            }
-//        }
-//    }
-//
-//    fun replyAll(): List<CompletableFuture<SignedTransaction>> =
-//        messages().map { reply(it).returnValue.toCompletableFuture() }
-
-    fun replyAll(): List<SignedTransaction> =
-        messages().map { reply(it).returnValue.toCompletableFuture().join() }
-
-//    fun replyAll(): List<SignedTransaction> {
-//        messages().map {
-//            executor.execute {
-//                reply(it)
-//            }
-//        }
-//        return emptyList()
-//    }
-
-    // might need to do in a executor to get it all to run
-    // this code will have the same problem, as the flow worker is still blocking due to the while loop
-    // while it waits for all the message flow workers it kicked off
-    // therefore there is no way to wait for results within the service
-//    fun replyAll(): List<SignedTransaction> {
-//        val messages = messages()
-//        val transactions = mutableListOf<SignedTransaction>()
-//        messages.map {
-//            executor.execute {
-//                transactions + reply(it).returnValue.getOrThrow()
-//            }
-//        }
-//        while (transactions.size < messages.size) {
-//        }
-//        return transactions
-//    }
+    fun replyAll() {
+        messages().map {
+            executor.execute {
+                reply(it)
+            }
+        }
+    }
 
     private fun messages() =
             repository().findAll(PageSpecification(1, 100))
                     .states
-                    .filter { it.state.data.recipient == serviceHub.myInfo.legalIdentities.first() }.also { logger.info(it.toString()) }
+                    .filter { it.state.data.recipient == serviceHub.myInfo.legalIdentities.first() }
 
     private fun repository() = serviceHub.cordaService(MessageRepository::class.java)
 
@@ -81,9 +46,5 @@ class MessageService(private val serviceHub: AppServiceHub) : SingletonSerialize
                 recipient = state.sender,
                 sender = state.recipient
         )
-    }
-
-    fun sleep() {
-        Thread.sleep(10000)
     }
 }
