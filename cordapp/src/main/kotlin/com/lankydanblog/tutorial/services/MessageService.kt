@@ -19,25 +19,24 @@ class MessageService(private val serviceHub: AppServiceHub) : SingletonSerialize
 
     private companion object {
         val logger = loggerFor<MessageService>()
-        // open source works with the executor service but not completable futures
         val executor: Executor = Executors.newFixedThreadPool(8)!!
     }
 
     fun replyInNewFlow(message: StateAndRef<MessageState>) = serviceHub.startFlow(SendMessageFlow(response(message), message))
 
-    fun replyAll() {
-        messages().map {
-            executor.execute {
-                reply(it)
-            }
-        }
-    }
+//    fun replyAll() {
+//        messages().map {
+//            executor.execute {
+//                reply(it)
+//            }
+//        }
+//    }
 //
 //    fun replyAll(): List<CompletableFuture<SignedTransaction>> =
 //        messages().map { reply(it).returnValue.toCompletableFuture() }
 
-//    fun replyAll(): List<SignedTransaction> =
-//        messages().map { reply(it).returnValue.toCompletableFuture() }.map { it.join() }
+    fun replyAll(): List<SignedTransaction> =
+        messages().map { reply(it).returnValue.toCompletableFuture().join() }
 
 //    fun replyAll(): List<SignedTransaction> {
 //        messages().map {

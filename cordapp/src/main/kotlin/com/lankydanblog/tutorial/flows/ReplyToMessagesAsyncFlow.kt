@@ -24,14 +24,14 @@ import java.util.concurrent.CompletableFuture
 @StartableByRPC
 class ReplyToMessagesAsyncFlow : FlowLogic<List<SignedTransaction>>() {
 //    class ReplyToMessagesAsyncFlow : FlowLogic<List<CompletableFuture<SignedTransaction>>>() {
-//    @Suspendable
-//    override fun call(): List<SignedTransaction> = serviceHub.cordaService(MessageService::class.java).replyAll()
+    @Suspendable
+    override fun call(): List<SignedTransaction> = serviceHub.cordaService(MessageService::class.java).replyAll()
 
-        @Suspendable
-    override fun call(): List<SignedTransaction> {
-        serviceHub.cordaService(MessageService::class.java).replyAll()
-        return emptyList()
-    }
+//        @Suspendable
+//    override fun call(): List<SignedTransaction> {
+//        serviceHub.cordaService(MessageService::class.java).replyAll()
+//        return emptyList()
+//    }
 
 //    @Suspendable
 //    override fun call(): List<CompletableFuture<SignedTransaction>> {
