@@ -1,6 +1,6 @@
-# Corda Services
+# Asynchronous Flow invocations with a Corda Service
 
-This project focuses on using a Corda service inside of a Flow. The blog post written with this code contains extra information that the code does not contain.
+This project focuses initiating a new Flow from inside a Corda Service. The blog post written with this code contains extra information that the code does not contain.
 
 # Structure:
 

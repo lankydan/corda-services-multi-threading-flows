@@ -23,7 +23,6 @@ class SendMessageFlow(private val message: MessageState, private val replyToMess
     @Suspendable
     override fun call(): SignedTransaction {
         logger.info("Started sending message ${message.contents}")
-//        serviceHub.cordaService(MessageService::class.java).sleep()
         val stx = collectSignature(verifyAndSign(transaction()))
         logger.info("Suspending to finalise ${message.contents}")
         val tx =  subFlow(FinalityFlow(stx))
